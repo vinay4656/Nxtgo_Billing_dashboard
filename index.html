@@ -45,23 +45,44 @@
             max-height: 500px; /* Generous height for submenu items */
         }
         
-        .form-input, .form-select, .form-textarea {
+        .form-input, .form-select, .form-textarea, .custom-select-trigger {
             border-radius: 0.5rem;
             border: 1px solid #d1d5db;
             padding: 0.75rem 1rem;
             width: 100%;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-        /* Style for multi-select */
-        select[multiple] {
-            padding: 0.5rem;
-            height: auto;
-        }
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
+        .form-input:focus, .form-select:focus, .form-textarea:focus, .custom-select-trigger:focus {
             outline: none;
             border-color: #76a937;
             box-shadow: 0 0 0 3px rgba(118, 169, 55, 0.2);
         }
+
+        /* Custom Dropdown w/ Checkboxes */
+        .custom-select-container { position: relative; }
+        .custom-select-trigger { display: flex; justify-content: space-between; align-items: center; cursor: pointer; background-color: white; }
+        .custom-select-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: white;
+            border: 1px solid #d1d5db;
+            border-top: none;
+            border-radius: 0 0 0.5rem 0.5rem;
+            z-index: 10;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        .custom-select-options label {
+            display: block;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .custom-select-options label:hover { background-color: #f1f5f9; }
+        .custom-select-options label input { margin-right: 0.75rem; }
 
         /* Validation Error Styling */
         .input-error {
@@ -110,22 +131,52 @@
         }
         .modal-content {
             background: white;
-            padding: 2.5rem;
+            padding: 2rem;
             border-radius: 0.75rem;
             max-width: 500px;
             width: 90%;
-            text-align: center;
             transform: scale(0.95);
             transition: transform 0.3s ease;
         }
         .modal-overlay.show .modal-content {
             transform: scale(1);
         }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        .modal-body {
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
 
-        /* For mobile view, make sidebar take full width */
-        @media (max-width: 640px) {
+        /* Responsive Sidebar */
+        @media (max-width: 767px) {
             .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                height: 100vh;
                 z-index: 40;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                width: 100%;
             }
         }
     </style>
@@ -137,7 +188,7 @@
         <div class="max-w-md w-full mx-auto bg-white shadow-xl rounded-lg p-8">
             <div class="text-center mb-8">
                 <img src="images/header_logo.png" company-logo" class="h-16 mx-auto">
-                <h2 class="mt-6 text-2xl font-bold text-gray-800">Admin Login</h2>
+                <h2 class="mt-6 text-2xl font-bold text-gray-800">Dashboard Login</h2>
                 <p class="text-gray-500">Please sign in to continue</p>
             </div>
             <form id="login-form">
@@ -175,19 +226,68 @@
     <div id="loader-overlay" class="modal-overlay"><div class="loader"></div></div>
     
     <div id="success-modal" class="modal-overlay">
-        <div class="modal-content">
-            <svg class="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <h2 class="text-2xl font-bold mb-2" id="modal-title">Success!</h2>
-            <p id="modal-message" class="text-gray-600 mb-6"></p>
-            <button onclick="closeModal()" class="save-btn text-white font-bold py-2 px-6 rounded-lg">Close</button>
+        <div class="modal-content text-center">
+             <svg class="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h2 class="text-2xl font-bold mb-2" id="modal-title-success">Success!</h2>
+            <p id="modal-message-success" class="text-gray-600 mb-6"></p>
+            <button onclick="closeModal('success-modal')" class="save-btn text-white font-bold py-2 px-6 rounded-lg">Close</button>
         </div>
     </div>
     
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal-overlay">
+        <div class="modal-content">
+             <div class="text-center">
+                <svg class="w-16 h-16 text-yellow-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h2 class="text-2xl font-bold mb-2" id="modal-title-confirm">Are you sure?</h2>
+                <p id="modal-message-confirm" class="text-gray-600 mb-6"></p>
+                <div class="flex justify-center gap-4">
+                    <button onclick="closeModal('confirmation-modal')" class="cancel-btn text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
+                    <button id="confirm-action-btn" class="save-btn text-white font-bold py-2 px-6 rounded-lg">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Vendor Modal -->
+    <div id="edit-vendor-modal" class="modal-overlay">
+        <div class="modal-content !max-w-2xl text-left">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Vendor</h3>
+                <button onclick="closeModal('edit-vendor-modal')" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <form id="edit-vendor-form">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-vendor-id">
+                    <div class="space-y-4">
+                         <div>
+                            <label for="edit-vendor-name" class="block text-sm font-medium text-gray-700">Vendor/Organization Name</label>
+                            <input type="text" id="edit-vendor-name" class="form-input mt-1">
+                        </div>
+                         <div>
+                            <label for="edit-phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                            <input type="tel" id="edit-phone" class="form-input mt-1">
+                        </div>
+                         <div>
+                            <label for="edit-email" class="block text-sm font-medium text-gray-700">Email</label>
+                            <input type="email" id="edit-email" class="form-input mt-1">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="closeModal('edit-vendor-modal')" class="cancel-btn text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
+                    <button type="submit" class="save-btn text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
     <!-- MAIN DASHBOARD WRAPPER (Initially hidden) -->
     <div id="dashboard-wrapper" class="h-screen hidden">
-        <div class="flex h-full">
+        <div class="flex h-full relative">
             <!-- Sidebar -->
-            <aside id="sidebar" class="w-64 bg-white shadow-md flex-shrink-0 flex flex-col justify-between border-r border-slate-200 absolute sm:relative sm:translate-x-0 -translate-x-full sidebar">
+            <aside id="sidebar" class="w-64 bg-white shadow-md flex-shrink-0 flex flex-col justify-between border-r border-slate-200 md:relative sidebar">
                 <div class="flex-grow">
                     <div class="p-4 flex items-center justify-center h-20 border-b border-slate-200">
                          <img src="images/header_logo.png" company-logo" class="h-12">
@@ -241,12 +341,12 @@
             </aside>
 
             <!-- Main Content -->
-            <div class="flex-1 flex flex-col">
-                 <header class="bg-white shadow-sm border-b border-slate-200 h-20 flex items-center justify-between sm:justify-end px-6">
-                    <button id="mobile-menu-button" class="sm:hidden p-2 rounded-md text-gray-500">
+            <div class="flex-1 flex flex-col main-content">
+                 <header class="bg-white shadow-sm border-b border-slate-200 h-20 flex items-center justify-between px-6">
+                    <button id="mobile-menu-button" class="md:hidden p-2 rounded-md text-gray-500">
                         <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-4 ml-auto">
                         <div class="text-right">
                             <h3 class="font-semibold text-slate-800">Admin User</h3>
                             <p class="text-sm text-slate-500">admin@company.com</p>
@@ -259,77 +359,6 @@
 
                 <main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-4 md:p-6 lg:p-8">
                     <div id="dashboard-content">
-                        <!-- REGULAR BILLING PAGE (DEFAULT) -->
-                        <div id="regular-billing" class="content-page">
-                            <h1 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">Regular Billing</h1>
-                            <div class="bg-white p-6 lg:p-8 rounded-xl shadow-lg">
-                                <form id="billing-form" novalidate>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label for="vendor-select" class="block text-sm font-medium text-gray-700 mb-1">Select Vendor</label>
-                                            <select id="vendor-select" name="vendor-select" class="form-select" required><option value="">-- Select Vendor --</option><option value="lpl">Select from LPL</option><option value="vendor_a">Vendor A (VK-1A2B3C)</option><option value="vendor_b">Vendor B (VK-X9Y8Z7)</option></select>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="service-type-billing" class="block text-sm font-medium text-gray-700 mb-1">Service Type</label>
-                                            <select id="service-type-billing" name="service-type-billing" class="form-select" required><option value="">-- Select Service --</option><option>FTL</option><option>PTL</option><option>LMI</option><option>Pickup</option></select>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="vendor-cost" class="block text-sm font-medium text-gray-700 mb-1">Vendor Cost</label>
-                                            <input type="number" id="vendor-cost" class="form-input" placeholder="e.g., 15000" required>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="client-cost" class="block text-sm font-medium text-gray-700 mb-1">Client Cost</label>
-                                            <input type="number" id="client-cost" class="form-input" placeholder="e.g., 20000" required>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div class="md:col-span-2">
-                                            <label for="payment-terms" class="block text-sm font-medium text-gray-700 mb-1">Payment Term & Condition</label>
-                                            <textarea id="payment-terms" rows="3" class="form-textarea" placeholder="e.g., Net 30 days" required></textarea>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="billing-month" class="block text-sm font-medium text-gray-700 mb-1">TPT Billing Month</label>
-                                            <input type="month" id="billing-month" class="form-input" required>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="invoice-date" class="block text-sm font-medium text-gray-700 mb-1">Invoice Date</label>
-                                            <input type="date" id="invoice-date" class="form-input" required>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div class="md:col-span-2">
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Billing Date Range</label>
-                                            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                                                <div class="w-full"><input type="date" id="date-from" class="form-input" required><p class="error-message hidden"></p></div>
-                                                <span class="text-gray-500 hidden sm:block">to</span>
-                                                <div class="w-full"><input type="date" id="date-to" class="form-input" required><p class="error-message hidden"></p></div>
-                                            </div>
-                                        </div>
-                                        <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700 mb-1">GST (Optional)</label><div class="grid grid-cols-1 sm:grid-cols-3 gap-4"><input type="number" id="cgst" class="form-input" placeholder="CGST %"><input type="number" id="sgst" class="form-input" placeholder="SGST %"><input type="number" id="igst" class="form-input" placeholder="IGST %"></div></div>
-                                        <div>
-                                            <label for="client-name" class="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
-                                            <input type="text" id="client-name" class="form-input" placeholder="Enter client name" required>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="unloading-cost" class="block text-sm font-medium text-gray-700 mb-1">Unloading Cost</label>
-                                            <input type="number" id="unloading-cost" class="form-input" placeholder="e.g., 500" required>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                        <div class="md:col-span-2">
-                                            <label for="tpt-charges" class="block text-sm font-medium text-gray-700 mb-1">TPT Charges</label>
-                                            <input type="number" id="tpt-charges" class="form-input" placeholder="e.g., 1200" required>
-                                            <p class="error-message hidden"></p>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col sm:flex-row justify-end gap-4 mt-8"><button type="button" class="cancel-btn text-white font-bold py-3 px-6 rounded-lg w-full sm:w-auto" onclick="document.getElementById('billing-form').reset()">Cancel</button><button type="submit" class="save-btn text-white font-bold py-3 px-6 rounded-lg w-full sm:w-auto">Generate Bill</button></div>
-                                </form>
-                            </div>
-                        </div>
-
                         <!-- VENDOR REGISTRATION PAGE -->
                         <div id="vendor-register" class="content-page hidden">
                             <h1 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">Vendor Registration</h1>
@@ -390,15 +419,21 @@
                                                     <p class="error-message hidden"></p>
                                                 </div>
                                                 <div class="md:col-span-2">
-                                                    <label for="service-type-vendor" class="block text-sm font-medium text-gray-700 mb-1">Service Type <span class="text-red-500">*</span> (Select one or more)</label>
-                                                    <select id="service-type-vendor" name="serviceType" class="form-select" required multiple size="5">
-                                                        <option>PTL</option>
-                                                        <option>FTL</option>
-                                                        <option>Warehousing</option>
-                                                        <option>3PL</option>
-                                                        <option>Courier</option>
-                                                    </select>
-                                                    <p class="error-message hidden"></p>
+                                                     <label for="service-type-vendor" class="block text-sm font-medium text-gray-700 mb-1">Service Type <span class="text-red-500">*</span></label>
+                                                     <div class="custom-select-container" id="service-type-vendor">
+                                                        <div class="custom-select-trigger">
+                                                            <span>Select Services...</span>
+                                                            <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                        </div>
+                                                        <div class="custom-select-options hidden">
+                                                            <label><input type="checkbox" name="serviceType" value="PTL"> PTL</label>
+                                                            <label><input type="checkbox" name="serviceType" value="FTL"> FTL</label>
+                                                            <label><input type="checkbox" name="serviceType" value="Warehousing"> Warehousing</label>
+                                                            <label><input type="checkbox" name="serviceType" value="3PL"> 3PL</label>
+                                                            <label><input type="checkbox" name="serviceType" value="Courier"> Courier</label>
+                                                        </div>
+                                                     </div>
+                                                     <p class="error-message hidden"></p>
                                                 </div>
                                             </div>
                                         </fieldset>
@@ -442,8 +477,8 @@
                                 </form>
                             </div>
                         </div>
-                        
-                         <!-- VENDOR LIST PAGE -->
+
+                        <!-- VENDOR LIST PAGE -->
                         <div id="vendor-list" class="content-page hidden">
                              <h1 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">Vendor List</h1>
                              <div class="bg-white p-6 rounded-xl shadow-lg">
@@ -466,6 +501,16 @@
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- BILLING PAGES -->
+                        <div id="regular-billing" class="content-page hidden">
+                           <h1 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">Regular Billing</h1>
+                            <div class="bg-white p-8 rounded-xl shadow-lg text-center">
+                                <svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <h2 class="mt-6 text-xl font-semibold text-gray-700">Billing Section Coming Soon</h2>
+                                <p class="mt-2 text-gray-500">This area will contain tools for managing regular billing.</p>
                             </div>
                         </div>
 
@@ -492,6 +537,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- Global State ---
+            let authToken = null; // To store the auth token after login
+            let vendors = []; // To store the vendor list locally
+
             // --- Elements ---
             const loginForm = document.getElementById('login-form');
             const loginScreen = document.getElementById('login-screen');
@@ -499,23 +548,53 @@
             const navLinks = document.querySelectorAll('.nav-link');
             const contentPages = document.querySelectorAll('.content-page');
             const vendorForm = document.getElementById('vendor-form');
-            const billingForm = document.getElementById('billing-form');
             const vendorTableBody = document.getElementById('vendor-table-body');
             const logoutButton = document.getElementById('logout-button');
             const menuToggles = document.querySelectorAll('.menu-toggle');
             const passwordInput = document.getElementById('password');
             const togglePasswordButton = document.getElementById('toggle-password');
-            const eyeIcon = document.getElementById('eye-icon');
-            const eyeOffIcon = document.getElementById('eye-off-icon');
-
-            let authToken = null; // To store the auth token after login
+            const confirmActionButton = document.getElementById('confirm-action-btn');
+            const editVendorForm = document.getElementById('edit-vendor-form');
+            const sidebar = document.getElementById('sidebar');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
 
             // --- API Functions (Mock) ---
-            const loginUser=async(t,e)=>{if("admin"===t&&"password"===e)return authToken="mock_jwt_token",{success:!0};return{success:!1,message:"Invalid credentials"}},fetchVendors=async()=>[{id:1,name:"Trans-Global Logistics",code:"VN-A4B9C1",serviceType:"FTL",active:!0},{id:2,name:"Speedy Courier Co.",code:"VN-D8E2F5",serviceType:"Courier",active:!0},{id:3,name:"Secure Warehousing",code:"VN-G3H7I4",serviceType:"Warehousing",active:!1},{id:4,name:"Manpower Solutions",code:"VN-J6K2L9",serviceType:"Man Power",active:!0}],createVendor=async t=>(console.log("Creating vendor with data:",Object.fromEntries(t)),new Promise(t=>setTimeout(()=>t({success:!0,data:{id:5,code:"VN-NEW"}}),1e3))),updateVendorStatus=async(t,e)=>(console.log(`Updating vendor ${t}, setting active to ${e}`),new Promise(t=>setTimeout(()=>t({success:!0}),500)));
-            const createBill = async (data) => { console.log('Creating bill with data:', data); return new Promise(resolve => setTimeout(() => resolve({ success: true, billId: 'BILL-12345' }), 1000)); };
+            const mockApi = {
+                loginUser: async (username, password) => {
+                    if (username === 'admin' && password === 'password') {
+                        authToken = "mock_jwt_token";
+                        return { success: true };
+                    }
+                    return { success: false, message: "Invalid credentials" };
+                },
+                fetchVendors: async () => [
+                    { id: 1, name: "Trans-Global Logistics", code: "VN-A4B9C1", serviceType: ["FTL", "Warehousing"], active: true, phone: '9876543210', email: 'contact@transglobal.com' },
+                    { id: 2, name: "Speedy Courier Co.", code: "VN-D8E2F5", serviceType: ["Courier"], active: true, phone: '9876543211', email: 'support@speedy.com' },
+                    { id: 3, name: "Secure Warehousing", code: "VN-G3H7I4", serviceType: ["Warehousing"], active: false, phone: '9876543212', email: 'info@securewarehousing.com' },
+                    { id: 4, name: "Manpower Solutions", code: "VN-J6K2L9", serviceType: ["3PL"], active: true, phone: '9876543213', email: 'hr@manpower.com' }
+                ],
+                createVendor: async (formData) => {
+                    console.log("Creating vendor with data:", Object.fromEntries(formData));
+                    return new Promise(resolve => setTimeout(() => resolve({ success: true, data: { id: Date.now(), code: `VN-${Math.random().toString(36).substr(2, 6).toUpperCase()}` } }), 1000));
+                },
+                updateVendorStatus: async (vendorId, isActive) => {
+                    console.log(`Updating vendor ${vendorId}, setting active to ${isActive}`);
+                    const vendor = vendors.find(v => v.id == vendorId);
+                    if (vendor) vendor.active = isActive;
+                    return new Promise(resolve => setTimeout(() => resolve({ success: true }), 500));
+                },
+                 updateVendor: async (vendorId, data) => {
+                    console.log(`Updating vendor ${vendorId} with`, data);
+                    const vendorIndex = vendors.findIndex(v => v.id == vendorId);
+                    if (vendorIndex > -1) {
+                        vendors[vendorIndex] = { ...vendors[vendorIndex], ...data };
+                    }
+                    return new Promise(resolve => setTimeout(() => resolve({ success: true }), 500));
+                }
+            };
 
             // --- UI Functions ---
-            const populateVendorTable = (vendors) => {
+            const populateVendorTable = () => {
                 vendorTableBody.innerHTML = '';
                 if (!vendors || vendors.length === 0) {
                     vendorTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-500">No vendors found.</td></tr>';
@@ -524,172 +603,209 @@
                 vendors.forEach(vendor => {
                     const statusBadge = vendor.active ? `<span class="px-2 py-1 font-semibold leading-tight text-green-700 bg-green-100 rounded-full">Active</span>` : `<span class="px-2 py-1 font-semibold leading-tight text-red-700 bg-red-100 rounded-full">Inactive</span>`;
                     const actionButton = vendor.active ? `<button class="text-red-600 hover:underline action-toggle">Deactivate</button>` : `<button class="text-green-600 hover:underline action-toggle">Activate</button>`;
-                    const row = `<tr class="bg-white border-b hover:bg-slate-50" data-vendor-id="${vendor.id}"><td class="px-6 py-4 font-medium text-gray-900">${vendor.name}<div class="font-normal text-gray-500 md:hidden">Code: ${vendor.code}</div><div class="font-normal text-gray-500 lg:hidden md:hidden">Service: ${vendor.serviceType}</div></td><td class="px-6 py-4 hidden md:table-cell">${vendor.code}</td><td class="px-6 py-4 hidden lg:table-cell">${vendor.serviceType}</td><td class="px-6 py-4">${statusBadge}</td><td class="px-6 py-4 text-center"><div class="flex items-center justify-center gap-4"><button class="text-blue-600 hover:underline action-edit">Edit</button>${actionButton}</div></td></tr>`;
+                    const serviceText = Array.isArray(vendor.serviceType) ? vendor.serviceType.join(', ') : vendor.serviceType;
+                    const row = `
+                        <tr class="bg-white border-b hover:bg-slate-50" data-vendor-id="${vendor.id}">
+                            <td class="px-6 py-4 font-medium text-gray-900">${vendor.name}<div class="font-normal text-gray-500 md:hidden">Code: ${vendor.code}</div><div class="font-normal text-gray-500 lg:hidden md:hidden">Service: ${serviceText}</div></td>
+                            <td class="px-6 py-4 hidden md:table-cell">${vendor.code}</td>
+                            <td class="px-6 py-4 hidden lg:table-cell">${serviceText}</td>
+                            <td class="px-6 py-4">${statusBadge}</td>
+                            <td class="px-6 py-4 text-center"><div class="flex items-center justify-center gap-4"><button class="text-blue-600 hover:underline action-edit">Edit</button>${actionButton}</div></td>
+                        </tr>`;
                     vendorTableBody.insertAdjacentHTML('beforeend', row);
                 });
             };
-            
-            // --- Validation Functions ---
-            const showError = (input, message) => {
-                const parent = input.parentElement.closest('div');
-                const error = parent.querySelector('.error-message');
-                input.classList.add('input-error');
-                if (error) { error.textContent = message; error.classList.remove('hidden'); }
-            };
 
-            const showFileError = (input, message) => {
-                const parent = input.closest('div');
-                const error = parent.querySelector('.error-message');
-                if(error){ error.textContent = message; error.classList.remove('hidden'); }
-            };
-            
-            const clearError = (input) => {
-                 const parent = input.parentElement.closest('div');
-                 const error = parent.querySelector('.error-message');
-                 input.classList.remove('input-error');
-                 if(error) error.classList.add('hidden');
-            };
-
-            const clearFileError = (input) => {
-                const parent = input.closest('div');
-                const error = parent.querySelector('.error-message');
-                if(error) error.classList.add('hidden');
-            };
-            
-            const clearAllErrors = (formId) => {
-                document.querySelectorAll(`#${formId} .input-error`).forEach(el => el.classList.remove('input-error'));
-                document.querySelectorAll(`#${formId} .error-message`).forEach(el => el.classList.add('hidden'));
-            };
-
-            const validateVendorForm = () => { /* ... same as previous version ... */ return true;};
-            
-            const validateBillingForm = () => {
-                clearAllErrors('billing-form');
-                let isValid = true;
-                const checkRequired = (id, message = "This field is required.") => {
-                    const input = document.getElementById(id);
-                    if (!input.value || input.value.trim() === '') {
-                        showError(input, message);
-                        isValid = false;
-                    }
-                };
-
-                ['vendor-select', 'service-type-billing', 'vendor-cost', 'client-cost', 'payment-terms', 'billing-month', 'invoice-date', 'date-from', 'date-to', 'client-name', 'unloading-cost', 'tpt-charges'].forEach(id => checkRequired(id));
+            // --- Validation Functions (Re-usable) ---
+            const showError = (input, message) => { const p = input.parentElement.closest('div'); if (p) { const e = p.querySelector('.error-message'); input.classList.add('input-error'); if(e){ e.textContent=message; e.classList.remove('hidden'); }}};
+            const showCustomSelectError = (container, message) => { const t = container.querySelector('.custom-select-trigger'); const e=container.parentElement.querySelector('.error-message'); t.classList.add('input-error'); if(e){e.textContent=message;e.classList.remove('hidden');}};
+            const clearCustomSelectError = (container) => { const t = container.querySelector('.custom-select-trigger'); const e=container.parentElement.querySelector('.error-message'); t.classList.remove('input-error'); if(e) e.classList.add('hidden');};
+            const showFileError = (input, message) => { const p=input.closest('div'); const e = p.querySelector('.error-message') || p.parentElement.querySelector('.error-message'); if(e){e.textContent=message; e.classList.remove('hidden');}};
+            const clearError = (input) => { const p = input.parentElement.closest('div'); if (p) { const e=p.querySelector('.error-message'); input.classList.remove('input-error'); if(e) e.classList.add('hidden');}};
+            const clearFileError = (input) => { const p=input.closest('div'); const e = p.querySelector('.error-message') || p.parentElement.querySelector('.error-message'); if(e) e.classList.add('hidden');};
+            const clearAllErrors = (formId) => { document.querySelectorAll(`#${formId} .input-error`).forEach(el => el.classList.remove('input-error')); document.querySelectorAll(`#${formId} .error-message`).forEach(el => el.classList.add('hidden'));};
+            const validateVendorForm = () => {
+                clearAllErrors('vendor-form'); let isValid = true;
+                const checkRequired = (id, msg="This field is required.") => { const i=document.getElementById(id); if(!i.value||i.value.trim()===""){showError(i,msg);isValid=false} };
+                const checkFileRequired = (id, msg="Please upload a file.") => { const i=document.getElementById(id); if(i.files.length===0){showFileError(i,msg);isValid=false} };
+                const checkRegex = (id, regex, msg) => { const i=document.getElementById(id); if(i.value.trim()!==""&&!regex.test(i.value.trim())){showError(i,msg);isValid=false} };
+                const serviceTypeContainer=document.getElementById('service-type-vendor'); if(serviceTypeContainer.querySelectorAll('input[type="checkbox"]:checked').length===0){showCustomSelectError(serviceTypeContainer,'Please select at least one service.');isValid=false}else{clearCustomSelectError(serviceTypeContainer)}
+                checkRequired('vendor-name','Organization name is required.');checkFileRequired('cert-upload');checkRequired('pan-card');checkRegex('pan-card',/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,'Please enter a valid PAN number.');checkFileRequired('pan-upload');checkRequired('aadhar-card');checkRegex('aadhar-card',/^\d{12}$/,'Aadhar must be a 12-digit number.');checkFileRequired('aadhar-upload');checkRequired('phone');checkRegex('phone',/^\d{10}$/,'Please enter a valid 10-digit mobile number.');checkRegex('gst-number',/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,'Please enter a valid GSTIN.');checkRegex('email',/^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,'Please enter a valid email address.');checkRequired('bank-name');checkRequired('account-number');checkRegex('account-number',/^\d{9,18}$/,'Account number must be between 9 and 18 digits.');checkRequired('ifsc-code');checkRegex('ifsc-code',/^[A-Z]{4}0[A-Z0-9]{6}$/,'Please enter a valid IFSC code.');checkRequired('branch-name');checkFileRequired('cheque-upload');
                 return isValid;
             };
 
-            // --- Event Listeners ---
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                showLoader();
-                const result = await loginUser(username.value, password.value);
+            // --- Modal Management ---
+            const showModal = (modalId, title, message) => { document.getElementById(`modal-title-${modalId.split('-')[0]}`).textContent = title; document.getElementById(`modal-message-${modalId.split('-')[0]}`).innerHTML = message; document.getElementById(modalId).classList.add('show'); };
+            const closeModal = (modalId) => document.getElementById(modalId).classList.remove('show');
+            const openEditModal = (vendorId) => { const v=vendors.find(v=>v.id==vendorId); if(!v) return; document.getElementById('edit-vendor-id').value = v.id; document.getElementById('edit-vendor-name').value = v.name; document.getElementById('edit-phone').value = v.phone; document.getElementById('edit-email').value = v.email; document.getElementById('edit-vendor-modal').classList.add('show');};
+            const openConfirmationModal = (vendorId, newStatus) => { const v=vendors.find(v=>v.id==vendorId); if(!v) return; const a=newStatus?"activate":"deactivate"; showModal('confirmation-modal', `Confirm Action`, `Are you sure you want to ${a} the vendor "${v.name}"?`); confirmActionButton.dataset.vendorId=vendorId; confirmActionButton.dataset.newStatus=newStatus; };
+
+            // --- Event Handlers ---
+            const handleLoginFormSubmit = async (e) => {
+                e.preventDefault(); showLoader();
+                const result = await mockApi.loginUser(document.getElementById('username').value, passwordInput.value);
                 hideLoader();
                 if (result.success) {
                     loginScreen.style.display = 'none';
                     dashboardWrapper.classList.remove('hidden');
-                    // Click the first link of the first menu
-                    document.querySelector('.sidebar-submenu a').click(); 
+                    // FIX: Directly call showPage instead of simulating a click for reliability
+                    showPage('vendor-register');
                 } else {
                     const loginError = document.getElementById('login-error');
                     loginError.textContent = result.message || 'Invalid username or password.';
                     loginError.classList.remove('hidden');
                 }
-            });
+            };
+
+            const handleLogout = () => {
+                authToken = null;
+                dashboardWrapper.classList.add('hidden');
+                loginScreen.style.display = 'flex';
+                loginForm.reset();
+                document.getElementById('login-error').classList.add('hidden');
+            };
+
+            const handleVendorFormSubmit = async function(e) {
+                e.preventDefault();
+                if (!validateVendorForm()) { showModal('success-modal', 'Validation Error', 'Please correct the errors before submitting.'); return; }
+                showLoader();
+                const formData = new FormData(this);
+                const result = await mockApi.createVendor(formData);
+                hideLoader();
+                if (result.success) {
+                    showModal('success-modal', 'Success!', `Vendor has been registered. <br>Unique Code: <strong>${result.data.code}</strong>`);
+                    this.reset(); resetFileNames(); clearAllErrors('vendor-form');
+                } else { showModal('success-modal', 'Error', 'There was a problem. Please try again.'); }
+            };
+
+            const handleVendorTableClick = async (e) => {
+                const row = e.target.closest('tr');
+                if (!row) return;
+                const vendorId = row.dataset.vendorId;
+                if (e.target.classList.contains('action-edit')) openEditModal(vendorId);
+                if (e.target.classList.contains('action-toggle')) {
+                    const vendor = vendors.find(v => v.id == vendorId);
+                    if (vendor) openConfirmationModal(vendorId, !vendor.active);
+                }
+            };
+            
+            const handleConfirmAction = async () => {
+                const { vendorId, newStatus } = confirmActionButton.dataset;
+                showLoader();
+                await mockApi.updateVendorStatus(vendorId, newStatus === 'true');
+                closeModal('confirmation-modal');
+                await refreshVendorList();
+                hideLoader();
+                showModal('success-modal', 'Success', `Vendor status has been updated.`);
+            };
+
+            const handleEditFormSubmit = async function(e) {
+                e.preventDefault();
+                const vendorId = document.getElementById('edit-vendor-id').value;
+                const data = { name: document.getElementById('edit-vendor-name').value, phone: document.getElementById('edit-phone').value, email: document.getElementById('edit-email').value };
+                showLoader();
+                await mockApi.updateVendor(vendorId, data);
+                closeModal('edit-vendor-modal');
+                await refreshVendorList();
+                hideLoader();
+                showModal('success-modal', 'Success', 'Vendor details have been updated.');
+            };
+
+            // --- Navigation & Page Management ---
+            const showPage = async (pageId) => {
+                // Hide all pages
+                contentPages.forEach(page => page.classList.add('hidden'));
+                // Show the target page
+                const targetPage = document.getElementById(pageId);
+                if (targetPage) targetPage.classList.remove('hidden');
+
+                // Update active link
+                navLinks.forEach(l => l.classList.remove('active'));
+                const activeLink = document.querySelector(`.nav-link[data-target="${pageId}"]`);
+                if (activeLink) {
+                    activeLink.classList.add('active');
+                     // Open parent menu if it's a submenu item
+                    const parentMenu = activeLink.closest('.sidebar-submenu');
+                    if(parentMenu && !parentMenu.classList.contains('submenu-open')) {
+                        parentMenu.previousElementSibling.click();
+                    }
+                }
+
+                // Load data if needed
+                if (pageId === 'vendor-list') await refreshVendorList();
+                
+                // Close sidebar on mobile
+                if (window.innerWidth < 768) sidebar.classList.remove('open');
+            };
+
+            // --- Initial Setup ---
+            const refreshVendorList = async () => { showLoader(); vendors = await mockApi.fetchVendors(); populateVendorTable(); hideLoader(); };
+
+            // Attach event listeners
+            loginForm.addEventListener('submit', handleLoginFormSubmit);
+            logoutButton.addEventListener('click', handleLogout);
+            vendorForm.addEventListener('submit', handleVendorFormSubmit);
+            vendorTableBody.addEventListener('click', handleVendorTableClick);
+            confirmActionButton.addEventListener('click', handleConfirmAction);
+            editVendorForm.addEventListener('submit', handleEditFormSubmit);
 
             togglePasswordButton.addEventListener('click', () => {
                 const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
                 passwordInput.setAttribute('type', type);
-                eyeIcon.classList.toggle('hidden');
-                eyeOffIcon.classList.toggle('hidden');
+                document.getElementById('eye-icon').classList.toggle('hidden');
+                document.getElementById('eye-off-icon').classList.toggle('hidden');
             });
 
-            logoutButton.addEventListener('click', () => { /* ... same logic ... */ });
-            
-            vendorForm.addEventListener('submit', async function(e) { /* ... same logic ... */ });
-            
-            billingForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                if (!validateBillingForm()) {
-                    showModal('Validation Error', 'Please correct the errors before submitting.');
-                    return;
-                }
-                showLoader();
-                const formData = new FormData(this);
-                const data = Object.fromEntries(formData.entries());
-                const result = await createBill(data);
-                hideLoader();
-
-                if (result.success) {
-                    showModal('Success!', `Bill with ID <strong>${result.billId}</strong> has been generated successfully.`);
-                    this.reset();
-                    clearAllErrors('billing-form');
-                } else {
-                    showModal('Error', 'There was a problem generating the bill. Please try again.');
-                }
-            });
-
-            // Add real-time validation for forms
-            vendorForm.querySelectorAll('input, select, textarea').forEach(input => { input.addEventListener('blur', () => validateVendorForm()); input.addEventListener('input', () => clearError(input)); });
-            billingForm.querySelectorAll('input, select, textarea').forEach(input => { input.addEventListener('blur', () => validateBillingForm()); input.addEventListener('input', () => clearError(input)); });
-            vendorForm.querySelectorAll('input[type="file"]').forEach(input => { input.addEventListener('change', () => clearFileError(input)); });
-
-            vendorTableBody.addEventListener('click', async function(e) { /* ... same logic ... */ });
-            
             navLinks.forEach(link => {
-                link.addEventListener('click', async (e) => {
+                link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    const targetId = link.getAttribute('data-target');
-                    document.querySelectorAll('.nav-link.active, .sidebar-link.active').forEach(l => l.classList.remove('active'));
-                    link.classList.add('active');
-                    contentPages.forEach(page => page.classList.add('hidden'));
-                    document.getElementById(targetId).classList.remove('hidden');
-                    
-                    if (window.innerWidth < 640) { document.getElementById('sidebar').classList.add('-translate-x-full'); }
-                    
-                    if (targetId === 'vendor-list') {
-                        showLoader();
-                        const vendors = await fetchVendors();
-                        populateVendorTable(vendors);
-                        hideLoader();
-                    }
+                    showPage(link.dataset.target);
                 });
             });
 
-            menuToggles.forEach(toggle => { /* ... same logic ... */ });
+            menuToggles.forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    toggle.nextElementSibling.classList.toggle('submenu-open');
+                    toggle.querySelector('.chevron').classList.toggle('rotate-180');
+                });
+            });
+
+            // Setup Custom Select Dropdown for Service Types
+            const serviceTypeSelect = document.getElementById('service-type-vendor');
+            const trigger = serviceTypeSelect.querySelector('.custom-select-trigger');
+            const options = serviceTypeSelect.querySelector('.custom-select-options');
+            const checkboxes = options.querySelectorAll('input[type="checkbox"]');
+            trigger.addEventListener('click', () => options.classList.toggle('hidden'));
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const selectedCount = Array.from(checkboxes).filter(i => i.checked).length;
+                    trigger.querySelector('span').textContent = selectedCount > 0 ? `${selectedCount} service(s) selected` : 'Select Services...';
+                    validateVendorForm(); // Re-validate on change
+                });
+            });
+            window.addEventListener('click', (e) => { if (!serviceTypeSelect.contains(e.target)) options.classList.add('hidden'); });
             
-            // --- Initial Setup ---
-            const firstMenuLink = document.querySelector('.sidebar-submenu a');
-            if (firstMenuLink) {
-                firstMenuLink.classList.add('active');
-                document.getElementById(firstMenuLink.dataset.target).classList.remove('hidden');
-                const parentMenu = firstMenuLink.closest('.sidebar-submenu');
-                if (parentMenu) {
-                    parentMenu.classList.add('submenu-open');
-                    const toggle = parentMenu.previousElementSibling;
-                    toggle.querySelector('.chevron')?.classList.add('rotate-180');
-                }
+            // Setup mobile menu
+            mobileMenuButton.addEventListener('click', () => sidebar.classList.toggle('open'));
+
+            // Setup file upload display names
+            const fileInputs = {'cert-upload':'cert-filename', 'pan-upload':'pan-filename', 'aadhar-upload':'aadhar-filename', 'gst-upload':'gst-filename', 'cheque-upload':'cheque-filename'};
+            for (const [inputId, filenameId] of Object.entries(fileInputs)) {
+                handleFileUpload(inputId, filenameId);
             }
 
-
-            const sidebar = document.getElementById('sidebar');
-            document.getElementById('mobile-menu-button').addEventListener('click', () => sidebar.classList.toggle('-translate-x-full'));
-
-            // File upload name display setup
-            ['cert-upload', 'pan-upload', 'aadhar-upload', 'gst-upload', 'cheque-upload'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.addEventListener('change', () => clearFileError(el));
-            });
-            handleFileUpload('cert-upload', 'cert-filename'); handleFileUpload('pan-upload', 'pan-filename'); handleFileUpload('aadhar-upload', 'aadhar-filename'); handleFileUpload('gst-upload', 'gst-filename'); handleFileUpload('cheque-upload', 'cheque-filename');
+            // Set initial page
+            showPage('vendor-register');
         });
 
-        // --- Helper Functions ---
+        // --- Global Helper Functions ---
         function showLoader() { document.getElementById('loader-overlay').classList.add('show'); }
         function hideLoader() { document.getElementById('loader-overlay').classList.remove('show'); }
-        function showModal(title, message) { /* ... same logic ... */ }
-        function closeModal() { /* ... same logic ... */ }
-        function handleFileUpload(inputId, filenameId) { /* ... same logic ... */ }
-        function resetFileNames() { /* ... same logic ... */ }
-        function filterTable(event) { /* ... same logic ... */ }
+        function showModal(modalId, title, message) { document.getElementById(`modal-title-${modalId.split('-')[0]}`).textContent = title; document.getElementById(`modal-message-${modalId.split('-')[0]}`).innerHTML = message; document.getElementById(modalId).classList.add('show');}
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('show'); }
+        function handleFileUpload(inputId, filenameId) { const input = document.getElementById(inputId); if(input) input.addEventListener('change', () => { document.getElementById(filenameId).textContent = input.files.length > 0 ? input.files[0].name : 'Choose file...'; }); }
+        function resetFileNames() { document.getElementById('cert-filename').textContent = 'PNG, JPG, PDF up to 10MB'; document.getElementById('pan-filename').textContent = 'Choose file...'; document.getElementById('aadhar-filename').textContent = 'Choose file...'; document.getElementById('gst-filename').textContent = 'Choose file...'; document.getElementById('cheque-filename').textContent = 'Choose file...'; }
+        function filterTable(event) { const filter = event.target.value.toUpperCase(); const rows = document.querySelector("#vendor-table-body").rows; for (let i = 0; i < rows.length; i++) { let showRow = false; for (let j = 0; j < rows[i].cells.length - 1; j++) { if (rows[i].cells[j].textContent.toUpperCase().indexOf(filter) > -1) { showRow = true; break; } } rows[i].style.display = showRow ? "" : "none"; } }
     </script>
 </body>
 </html>
